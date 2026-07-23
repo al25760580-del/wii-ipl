@@ -1943,7 +1943,7 @@ config.libs = [
             Object(NonMatching, "MSL_Common/alloc.c"),
             Object(Matching,    "MSL_Common/errno.c"),
             Object(NonMatching, "MSL_Common/ansi_files.c"),
-            Object(NonMatching, "MSL_Common_Embedded/ansi_fp.c"),
+            Object(Matching,    "MSL_Common_Embedded/ansi_fp.c"),
             Object(Matching,    "MSL_Common/ctype.c"),
             Object(NonMatching, "MSL_Common/locale.c"),
             Object(NonMatching, "MSL_Common/arith.c"),
