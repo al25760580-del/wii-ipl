@@ -71,7 +71,8 @@ typedef struct ModuleHeader {
     u8 pad_0x05[3];    // 0x05
     u32 size;          // 0x08
     u8 type;           // 0x0C
-    u8 pad_0D[0x13];
+    struct CHANSVmModule* module; // 0x0D
+    u8 pad_11[0x9];    // 0x11
 } ModuleHeader;
 
 typedef struct StringEntry {

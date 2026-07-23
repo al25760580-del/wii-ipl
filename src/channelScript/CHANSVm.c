@@ -6288,6 +6288,7 @@ CHANSVmErr CHANSVmAddExe(CHANSVm* vm, vmS32 unk0, CHANSVm* execCtx) {
     }
 
     pVm->pFreeExeBuf = pVm->pFreeExeBuf + size;
+    // Struct access using 'header = mod->module' breaks the match
     header = (CHANSVmModule*)(mod + 1);
     header->pNext = vmNull;
     header->regionSize = size - sizeof(ModuleHeader);
@@ -6910,9 +6911,8 @@ static CHANSVmErr VmCallMethod(CHANSVm* vm, u32 instructionSize, u32 callType, u
         target = vmNull;
     } else {
         CHANSVmExecutionCtx* ec = pVm->pActiveCtx;
-        u8 byte1 = *((u8*)pConstObj + 1);
-        u8 byte2 = *((u8*)pConstObj + 2);
-        u32 methodId = (byte2) | (byte1 << 8);
+        // TODO: what's the actual type of the object here? avoid raw ptr access
+        u32 methodId = *((u16*)pConstObj + 1);
         u32 methodCount;
 
         if (ec->pDbg->pMethodTbl == vmNull) {
@@ -7303,10 +7303,12 @@ CHANSVmErr CHANSVmStep(CHANSVm* vm, int stepCount) {
                         result = CHANSVmDeleteObject(vm, &tmpObj);
                         if (result == CHANS_VM_OK && leftOp != &pVm->accumulator && leftOp != &tmpObj && (leftOp->flags.raw & CHANSVM_OBJ_FLAG_READONLY) == 0 &&
                             (result = CHANSVmDeleteObject(vm, leftOp), result == CHANS_VM_OK)) {
+                            // TODO: find the correct sizeof(...) expression
                             CHANSVmFree(vm, leftOp, 0x20);
                         }
                         if (result == CHANS_VM_OK && rightOp != &pVm->accumulator && rightOp != &tmpObj && (rightOp->flags.raw & CHANSVM_OBJ_FLAG_READONLY) == 0 &&
                             (result = CHANSVmDeleteObject(vm, rightOp), result == CHANS_VM_OK)) {
+                            // TODO: find the correct sizeof(...) expression
                             CHANSVmFree(vm, rightOp, 0x20);
                         }
                     }
@@ -7316,8 +7318,9 @@ CHANSVmErr CHANSVmStep(CHANSVm* vm, int stepCount) {
                 case CHANS_VM_OP_PUSH: {
                     CHANSVmObjHdr* resultObj;
                     resultObj = vmNull;
-                    if ((u32)pVm->pActiveCtx->stackDepth < (u32)-1) {
-                        CHANSVmObjHdr* hdr = CHANSVmNewObjHdr(vm, 1);
+                    // This comparison is odd... it does improve the match though
+                    if (pVm->pActiveCtx->stackDepth < (u32)-1) {
+                        CHANSVmObjHdr* hdr = CHANSVmNewObjHdr(vm, vmTrue);
                         if (hdr != vmNull) {
                             resultObj = CHANSVmCopyObject(vm, hdr, &pVm->accumulator);
                             if (resultObj != vmNull) {
@@ -7665,8 +7668,9 @@ CHANSVmErr CHANSVmStep(CHANSVm* vm, int stepCount) {
                     imm16Val = VM_READ_BE_U16(operandBuf, 0);
                     foundObj = CHANSVm_81455654(vm, imm16Val);
                     if (foundObj != vmNull && pVm->accumulator.type == CHANS_VM_OBJ_TYPE_INTEGER &&
+                        // TODO: these raw pointer casts with the accumulator are a recurring thing. get rid of raw ptr access
                         (computedAddr = *((u32*)&pVm->accumulator.value + 1), (u64)pVm->accumulator.value.int_v <= ~1U)) {
-                        if ((s32)foundObj->type != CHANS_VM_TYPE_ARRAY) {
+                        if (foundObj->type != CHANS_VM_TYPE_ARRAY) {
                             foundEntry = 0;
                         } else {
                             u32 idx;
