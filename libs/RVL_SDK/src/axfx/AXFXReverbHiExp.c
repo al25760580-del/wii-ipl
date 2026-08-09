@@ -1,7 +1,6 @@
 #include <private/axfx.h>
-#include <revolution/AXFX.h>
-#include <revolution/MEM.h>
-#include <revolution/OS.h>
+#include <revolution/axfx.h>
+#include <revolution/os.h>
 
 #include <math.h>
 #include <string.h>

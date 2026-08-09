@@ -1,6 +1,5 @@
 #include <private/axfx.h>
 #include <revolution/axfx.h>
-#include <revolution/mem.h>
 #include <revolution/os.h>
 
 #include <string.h>
