@@ -1,5 +1,9 @@
 ### **Thank you for your interest on helping out!**
 
+**Unfortunately, we do not allow AI to be used for decompiling.**
+- AI often produces code in questionable quality and a human would unlikely write.
+- They may use source code leaks as references as it could be in their training data.
+
 # Resources
 
 - An [introduction to decompilation](https://decomp.wiki/en/resources/decomp-intro), if this is your first time learning.
@@ -107,7 +111,7 @@ Despite the compiler that this project uses (CodeWarrior) has support for `#prag
 
 - Guard names for libraries:
   - System Menu - `IPL`
-  - RVL_SDK and RevoEX - im "revolution" directory, `REVOLUTION`. And in "private" directory, `PRIVATE`
+  - RVL_SDK and RevoEX - in "revolution" directory, `REVOLUTION`. And in "private" directory, `PRIVATE`
   - NW4R - `NW4R`
   - RVLMiddleware/eZiText - in "zi8clib" directory, `ZI8_CLIB`. Otherwise, `EZI_TEXT`
   - RVLMiddleware/ATOKDict - `ATOK`
