@@ -67,9 +67,19 @@ Después de fusionar los PRs #38–#44 de `koopthekoopa/wii-ipl`:
 
 ## 2. Prerrequisito bloqueante (Fase 0) — bucle de verificación
 
-Hoy la rama no se puede difear en el sandbox: no hay binario original, el fork no
-tiene CI y los hosts de toolchains están bloqueados. **Ningún commit de
-"matcheado" debe subirse sin verificación**, así que primero:
+> **Actualización 2026-08-21 (sesión 2).** Dos de los tres bloqueos cayeron:
+> los hosts de toolchain ya son accesibles (se descargan `mwcceppc`, binutils,
+> dtk y wibo dentro del sandbox) y el fork ya tiene CI propia
+> (`.github/workflows/build-dol.yml`, sólo falta habilitar Actions y poner el
+> secreto `ORIG_43U_APP_B64`). Sigue faltando el binario original en local.
+> Mientras tanto existe un bucle de verificación intermedio:
+> `tools/compile_check.py` (¿compila con CodeWarrior?) y `tools/size_check.py`
+> (¿coincide el tamaño de cada función con `symbols.txt`?). Resultados en
+> `docs/SIZE_AUDIT.md`: **73 unidades no verificadas ya tienen todos sus
+> tamaños correctos** — son las candidatas más baratas cuando haya objdiff.
+> Sigue vigente la regla: nada se marca `Matching` sin objdiff.
+
+**Ningún commit de "matcheado" debe subirse sin verificación**, así que primero:
 
 1. **Binario original**: extraer `main.dol` de un WAD 4.3U → `orig/43U/00000001.app`
    (legal: se obtiene de la consola del usuario; no se commitea).
@@ -120,6 +130,12 @@ Objetivo: `CHANSVm.c` completo (`Matching`).
   esta sesión, funcionalmente verificados pero **sin diff**): corregir contra
   objdiff (`k$2351` de md5, `sha1template` 0x20, layout HMAC 0xD4) y pasar
   `net/md5.c`, `net/sha1.c`, `net/hmac.c` a `Matching` (8.5 KiB).
+- **Sesión 2**: `md5.c` reconstruido sobre la tabla `k$2351` (índices de las
+  rondas 16..63) y `sha1.c` con las formas de bucle correctas y los estáticos
+  de padding en const; ProcessBlock 0xA74→0x4B8 (orig 0x4C8) y
+  NETSHA1iProcessBlock 0x67C→0x33C (orig 0x39C). Regla general descubierta:
+  CodeWarrior con `-O4,p` desenrolla los `for` contados pero no los
+  `do/while`, así que el tamaño original delata la forma del bucle.
 - ~~Escribir los TUs faltantes de `net`~~ — **hecho (sin diff): `aes.c`
   (API NETAES* completa + tablas, verificado FIPS 197/SP 800-38A) y
   `nettime.c` (NETGetUniversalCalendar). Falta `neterrorcode.c`** y la

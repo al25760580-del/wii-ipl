@@ -26,11 +26,12 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 BUILD = ROOT / "build"
 COMPILERS = BUILD / "compilers"
+BINUTILS_DIR = BUILD / "binutils"
 TOOLS = BUILD / "tools"
 OUT = BUILD / "compile_check"
 
@@ -146,6 +147,69 @@ def build_command(src: Path, obj: Path, version: str, extra: List[str]) -> List[
         argv.extend(split_flag(flag))
     argv += ["-c", "-o", str(obj), str(src.relative_to(ROOT))]
     return argv
+
+
+def load_project_config(version: str):
+    """Import configure.py and return its fully built ProjectConfig.
+
+    configure.py is a script, not a module: it parses argv and then calls
+    generate_build(config) (which needs the original binary). Stub that call
+    out and run it, so the exact per-object cflags/compiler of the real build
+    become available here.
+    """
+    import runpy
+
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+    import tools.project as project
+
+    captured = {}
+
+    def capture(config):
+        captured["config"] = config
+
+    real_generate = project.generate_build
+    real_argv = sys.argv
+    project.generate_build = capture
+    sys.argv = [
+        "configure.py",
+        "--version",
+        version,
+        "--compilers",
+        str(COMPILERS),
+        "--binutils",
+        str(BINUTILS_DIR),
+    ]
+    cwd = os.getcwd()
+    try:
+        os.chdir(ROOT)
+        runpy.run_path(str(ROOT / "configure.py"), run_name="__main__")
+    finally:
+        os.chdir(cwd)
+        sys.argv = real_argv
+        project.generate_build = real_generate
+    return captured.get("config")
+
+
+def object_command(obj, out_dir: Path) -> Tuple[Path, Path, List[str]]:
+    """(source, object, argv) for a resolved dtk Object."""
+    src = ROOT / obj.src_path
+    rel = obj.src_path
+    dst = out_dir / (str(rel).replace("/", "_") + ".o")
+    mw_version = obj.options["mw_version"]
+    cflags = obj.options["cflags"]
+    if isinstance(cflags, str):
+        cflags = [cflags]
+    cflags = list(cflags) + list(obj.options.get("extra_cflags") or [])
+
+    argv: List[str] = []
+    if os.name != "nt":
+        argv.append(str(TOOLS / "wibo"))
+    argv.append(str(COMPILERS / mw_version / "mwcceppc.exe"))
+    for flag in cflags:
+        argv.extend(split_flag(flag))
+    argv += ["-c", "-o", str(dst), str(rel)]
+    return src, dst, argv
 
 
 def split_flag(flag: str) -> List[str]:

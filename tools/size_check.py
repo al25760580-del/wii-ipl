@@ -41,6 +41,8 @@ from compile_check import (  # noqa: E402
     build_command,
     ensure_tools,
     expand,
+    load_project_config,
+    object_command,
 )
 
 BINUTILS = BUILD / "binutils"
@@ -131,6 +133,81 @@ def compile_unit(src: Path, version: str, extra: List[str], verbose: bool) -> Op
     return obj
 
 
+def check_object(obj, out_dir: Path, symbols, verbose: bool):
+    """Compile one dtk object and grade its function sizes.
+
+    Returns (status, same, diff, unknown) where status is "ok", "diff",
+    "compile-error" or "no-source".
+    """
+    src, dst, cmd = object_command(obj, out_dir)
+    if not src.exists():
+        return "no-source", [], [], []
+    if verbose:
+        print(" ".join(cmd))
+    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    if proc.returncode != 0:
+        return "compile-error", [], [], []
+
+    same, diff, unknown = [], [], []
+    for name, size in object_functions(dst):
+        entries = symbols.get(strip_suffix(name))
+        if not entries:
+            unknown.append(name)
+            continue
+        expected = entries[0][0]
+        if len(entries) > 1 and any(e[0] == size for e in entries):
+            expected = size
+        if expected == size:
+            same.append(name)
+        else:
+            diff.append((name, size, expected))
+    return ("ok" if not diff else "diff"), same, diff, unknown
+
+
+def check_all(args, symbols) -> int:
+    config = load_project_config(args.version)
+    objects = config.objects()
+    out_dir = OUT / "all"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (BUILD / args.version / "include").mkdir(parents=True, exist_ok=True)
+
+    rows = []
+    for name, obj in objects.items():
+        lib = obj.options.get("lib") or ""
+        if args.lib and not any(l.lower() in lib.lower() for l in args.lib):
+            continue
+        if obj.completed and not args.include_matching:
+            continue
+        status, same, diff, unknown = check_object(obj, out_dir, symbols, args.verbose)
+        if status == "no-source":
+            continue
+        rows.append((name, lib, obj.completed, status, len(same), len(diff), len(unknown)))
+        if not args.summary and status == "diff":
+            print(f"\n=== {name} ({lib}) ===")
+            for fname, size, expected in diff:
+                print(f"  DIFF     {fname}: built 0x{size:X} vs orig 0x{expected:X} ({size - expected:+d})")
+
+    width = max((len(r[0]) for r in rows), default=10)
+    clean = [r for r in rows if r[3] == "ok"]
+    dirty = [r for r in rows if r[3] == "diff"]
+    broken = [r for r in rows if r[3] == "compile-error"]
+    print("\n=== units whose every function already has the original size ===")
+    for r in clean:
+        print(f"  {r[0]:<{width}}  ({r[1]}, {r[4]} functions)")
+    print("\n=== units with size differences ===")
+    for r in dirty:
+        print(f"  {r[0]:<{width}}  ({r[1]}) same={r[4]} diff={r[5]}")
+    if broken:
+        print("\n=== units that do not compile standalone ===")
+        for r in broken:
+            print(f"  {r[0]:<{width}}  ({r[1]})")
+    print(
+        f"\ntotals: {len(rows)} units checked, {len(clean)} size-clean, "
+        f"{len(dirty)} with differences, {len(broken)} compile errors"
+    )
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -140,6 +217,17 @@ def main() -> int:
     ap.add_argument("--version", default="43U", choices=["43U", "43E", "43J", "43K"])
     ap.add_argument("--cflag", action="append", default=[])
     ap.add_argument("--summary", action="store_true", help="only print per-unit totals")
+    ap.add_argument(
+        "--all",
+        action="store_true",
+        help="check every object declared in configure.py (uses each object's real cflags)",
+    )
+    ap.add_argument("--lib", action="append", default=[], help="with --all, restrict to these libraries")
+    ap.add_argument(
+        "--include-matching",
+        action="store_true",
+        help="with --all, also check objects already marked Matching (tool calibration)",
+    )
     ap.add_argument("--show-ok", action="store_true", help="also list functions whose size matches")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
@@ -147,12 +235,15 @@ def main() -> int:
     paths = list(args.sources)
     for preset in args.preset:
         paths.extend(PRESETS[preset])
-    if not paths:
-        ap.error("nothing to check (pass sources or --preset)")
+    if not paths and not args.all:
+        ap.error("nothing to check (pass sources, --preset or --all)")
 
     ensure_tools()
     ensure_binutils()
     symbols = load_symbols(args.version)
+
+    if args.all:
+        return check_all(args, symbols)
 
     total_same = total_diff = total_unknown = 0
     unit_rows: List[Tuple[str, int, int, int]] = []

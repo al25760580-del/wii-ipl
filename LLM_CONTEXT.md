@@ -9,9 +9,9 @@ matching, and where the next decompilation work should go.
 > is the living *state* document; `docs/DECOMPILATION_PLAN.md` is the roadmap
 > to 70%.
 
-> Last updated: 2026-08-21, after merging PRs #38–#44 from
-> `koopthekoopa/wii-ipl` into `arena/01a02263-wii-ipl` and decompiling the
-> RevoEX `net` digest sources (MD5 / SHA-1 / HMAC).
+> Last updated: 2026-08-21 (session 2). The CodeWarrior toolchain now
+> downloads inside the sandbox, so there is a real verification loop even
+> without the original binary: see §11 and `docs/SIZE_AUDIT.md`.
 
 ---
 
@@ -195,6 +195,31 @@ Interfaces were pinned by the already-matched callers and, for AES, by the
 Wii no Ma channel decomp (WiiLink24/wii-no-ma-patches) whose RevoEX net
 symbols/sizes match this binary exactly.
 
+**Session 2 progress with the size checker** (still NonMatching, but much
+closer; both re-verified on the host against RFC 1321 / FIPS 180-1):
+
+| Function | before | now | original |
+|---|---|---|---|
+| `md5.c` ProcessBlock | 0xA74 | **0x4B8** | 0x4C8 |
+| `md5.c` NETMD5Update | 0x224 | **0xE0** | 0xF0 |
+| `md5.c` NETMD5GetDigest | 0x230 | **0x148** | 0x128 |
+| `sha1.c` NETSHA1iProcessBlock | 0x67C | **0x33C** | 0x39C |
+| `sha1.c` NETSHA1GetDigest | 0x21C | **0x160** | 0x12C |
+
+Two findings that generalize to the whole project:
+
+1. **`k$2351` identified**: the 48 u32 next to the MD5 sine table are the
+   x[] indices of rounds 16..63, so the compressor is four 4x-unrolled loops,
+   not a fully unrolled body. md5.c's four functions now sum to 0x720 —
+   exactly the unit's `.text` span.
+2. **CodeWarrior at `-O4,p` unrolls counted `for` loops but not `do/while`
+   loops.** Original function sizes therefore tell you which loop shape the
+   Nintendo source used. This single rule cut ~1.5 KiB from md5/sha1 and is
+   worth trying on any oversized ported unit (aes.c, TMC_JPEG, fa).
+
+`sha1.c` also had `padlead`/`padalign` as mutable statics; symbols.txt places
+them in `.sdata2`/`.sbss2`, i.e. const, and `padalign` is 8 bytes, not 4.
+
 **Not yet matching** (needs objdiff against the original binary):
 
 1. `md5.c`: original `.data` has an extra 0xC0-byte table of 48 u32
@@ -267,6 +292,30 @@ stay NonMatching until objdiff verification.
 Whoever has the binary: run `ninja` with objdiff open, check the five units,
 and adjust. Do **not** mark these `Matching` until verified.
 
+## 8b. Verification without the original binary (NEW)
+
+`files.decomp.dev` is reachable now, so `mwcceppc` + binutils can be
+downloaded and run in the sandbox. Two tools were added:
+
+- `python tools/compile_check.py <files|--preset net|fa|wpad|vi>` — compiles
+  single TUs with the real compiler and the build's flags. Every previously
+  ported unit (net 8/8, fa 31/31, WPADHIDParser, i2c) compiles.
+- `python tools/size_check.py …` — compiles and then compares each function's
+  size against `config/<VER>/symbols.txt`. **Different size ⇒ certainly not
+  matching**; same size ⇒ necessary condition met. `--all` walks every object
+  declared in `configure.py` with that object's exact cflags/compiler.
+
+Calibration: over 786 units (including the ~650 already `Matching`), 712 are
+size-clean and only 2 known-good units report a difference, i.e. the check is
+right ~99.7% of the time. Caveat: symbols are matched by name across the whole
+binary, so a `static` whose name also exists elsewhere can get a wrong
+expectation; 13 units need the PCH/SJIS wrapper and cannot be compiled
+standalone.
+
+Full audit and the actionable lists: **`docs/SIZE_AUDIT.md`**. Headline:
+of the units that are not yet `Matching`, **73 already have the original size
+in every function** — those are the cheapest objdiff wins available.
+
 ## 8. How to build & verify locally
 
 ```sh
@@ -293,6 +342,11 @@ proves behavior, **not** matching — always re-verify with objdiff.
 
 ## 9. Priorities for continuing the decompilation
 
+0. **Run the fork CI once** (secret + Actions) to get a real `report.json`,
+   or drop the WAD image in `orig/43U/` locally. Everything below is much
+   faster with objdiff; without it, use `tools/size_check.py`.
+0b. **Attack the 73 size-clean unverified units first** (`docs/SIZE_AUDIT.md`):
+   they may already be matching and nobody has diffed them.
 1. **Finish the 99%+ functions in §5** (objdiff needed; tiny diffs).
 2. **Complete RevoEX `net`**: `nettime.c`, `neterrorcode.c`, `aes.c` (AES is
    also spec-determined; the `.text` range is 0x81494D84–0x814953EC) — sources
@@ -323,16 +377,17 @@ its entries to `config/<VER>/splits.txt` + `symbols.txt` for all four versions
   guarded to run only in `koopthekoopa/wii-ipl`. Linked DOL caveats: SEL is
   not generated (not 100% shiftable), and NonMatching/ported units are
   unverified — expect quirks in those areas (see §7).
-  **Status**: the workflow files are ready in the workspace (also preserved
-  on the local branch `ci-build-dol`), but the session's GitHub integration
-  lacks the `workflows` permission, so GitHub rejects pushes that touch
-  `.github/workflows/`. To land them: reconnect GitHub granting the
-  `workflows` permission (then push), or add the two files manually
-  (`.github/workflows/build-dol.yml` + the one-line `if:` guard in
-  `.github/workflows/build.yml`).
-- Sandbox proxy blocks `files.decomp.dev`, `decomp.dev`, `ghcr.io` and Azure
-  blob artifact downloads. `github.com`/`api.github.com` work. Local builds
-  must run on a machine with network (or use the fork CI).
+  **Status: landed.** Pushing over SSH (deploy key) is not subject to the
+  `workflows` OAuth scope, so `.github/workflows/build-dol.yml` and the
+  `if: github.repository == 'koopthekoopa/wii-ipl'` guard on `build.yml` are
+  now on this branch. What is still needed from a human: enable Actions on
+  the fork and set the `ORIG_43U_APP_B64` secret; then run the workflow
+  manually (`workflow_dispatch`).
+- Network from the sandbox: `files.decomp.dev`, `decomp.dev`, `github.com`
+  and `raw.githubusercontent.com` all work now, so compilers, binutils, dtk
+  and wibo download fine. What is still missing locally is only the original
+  image (`orig/43U/00000008.app`), without which `configure.py` emits just
+  the tool rules and there is no link/objdiff.
 - The upstream repo currently rewrote its history (single squashed commit
   `0b0cedd` + full old history); PR branches still carry the old history.
   Merge PRs from upstream with `git merge <pull-ref>` after
