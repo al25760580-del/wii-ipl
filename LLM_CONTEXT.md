@@ -309,10 +309,30 @@ its entries to `config/<VER>/splits.txt` + `symbols.txt` for all four versions
 
 ## 10. Sandbox/environment notes
 
-- This fork: Actions disabled, no access to the private upstream build
-  container, and the sandbox proxy blocks `files.decomp.dev`, `decomp.dev`,
-  `ghcr.io` and Azure blob artifact downloads. `github.com`/`api.github.com`
-  work. Plan builds on a normal machine or use upstream CI runs.
+- **Fork CI (`build-dol.yml`)**: builds the linked `main.dol` (Dolphin-testable)
+  on GitHub Actions without the private upstream container. Requirements:
+  1. **Actions enabled on the fork** (fork settings → Actions → General →
+     allow workflows), and
+  2. a repository secret `ORIG_43U_APP_B64` = base64 of the original
+     `00000008.app` from a 4.3U Wii Menu WAD (never committed):
+     `gh secret set ORIG_43U_APP_B64 --repo al25760580-del/wii-ipl --body "$(base64 -w0 00000008.app)"`.
+  The workflow downloads the toolchain (dtk/compilers/binutils/wibo from
+  GitHub releases + files.decomp.dev — reachable from runners), splits the
+  original DOL, builds everything and uploads `wii-menu-main-dol-43U`
+  (main.dol + report.json) as an artifact. Upstream's `build.yml` is
+  guarded to run only in `koopthekoopa/wii-ipl`. Linked DOL caveats: SEL is
+  not generated (not 100% shiftable), and NonMatching/ported units are
+  unverified — expect quirks in those areas (see §7).
+  **Status**: the workflow files are ready in the workspace (also preserved
+  on the local branch `ci-build-dol`), but the session's GitHub integration
+  lacks the `workflows` permission, so GitHub rejects pushes that touch
+  `.github/workflows/`. To land them: reconnect GitHub granting the
+  `workflows` permission (then push), or add the two files manually
+  (`.github/workflows/build-dol.yml` + the one-line `if:` guard in
+  `.github/workflows/build.yml`).
+- Sandbox proxy blocks `files.decomp.dev`, `decomp.dev`, `ghcr.io` and Azure
+  blob artifact downloads. `github.com`/`api.github.com` work. Local builds
+  must run on a machine with network (or use the fork CI).
 - The upstream repo currently rewrote its history (single squashed commit
   `0b0cedd` + full old history); PR branches still carry the old history.
   Merge PRs from upstream with `git merge <pull-ref>` after
