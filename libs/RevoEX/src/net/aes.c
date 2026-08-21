@@ -7,9 +7,12 @@
 // from the Wii no Ma channel decomp (WiiLink24/wii-no-ma-patches), whose
 // RevoEX net AES symbols and sizes match this binary exactly.
 //
-// The round functions are written byte-wise so they are host-verifiable;
-// the original likely used the classic u32 T-table rotation idiom, to be
-// restored when diffing against the binary with objdiff.
+// The unit has exactly nine functions in the binary (AESiEncryptBlock,
+// AESiDecryptBlock, NETAESCreateEx/Create/Delete/Encrypt/Decrypt and the two
+// static NETiAES*Block), so every helper is inlined and there is no GF
+// multiply routine: the inverse key schedule is built out of the decrypt
+// T-table instead. Round loops are do/while because CodeWarrior at -O4,p
+// unrolls counted for loops, which is what the original sizes rule out.
 //
 // NOT YET VERIFIED AGAINST THE ORIGINAL BINARY (no objdiff in this fork):
 // - the original unit also contains 0xC8 bytes of .data (two unlabelled
@@ -166,37 +169,34 @@ static void NETiAESDecryptoBlock(NET_AESContext* ctx, const u8* in, u8* out);
 
 // State is processed byte-wise (column-major, FIPS 197 layout) so the same
 // source behaves identically on any host endianness.
-static u8 AESiXTime(u8 x) {
-    return (u8)((x << 1) ^ ((x & 0x80) ? 0x1B : 0));
-}
-
-static u8 AESiMult(u8 a, u8 m) {
-    u8 result = 0;
-
-    while (m != 0) {
-        if (m & 1) {
-            result ^= a;
-        }
-        a = AESiXTime(a);
-        m >>= 1;
-    }
-    return result;
-}
-
-// Applies InvMixColumns to each word of a 128-bit key block, treating the
-// word's four bytes as a column (this matches how AddRoundKey feeds the key
-// into the inverse round: word k XORs into column k of the shifted state).
+// Applies InvMixColumns to each word of a 128-bit key block, needed to turn
+// the encryption key schedule into the one the equivalent inverse cipher
+// wants. The decrypt T-table already carries InvMixColumns composed with the
+// inverse S-box, so feeding it the *forward* S-box of a key byte cancels the
+// inverse S-box out and leaves plain InvMixColumns - no GF multiply routine
+// (and no extra symbol) is needed, which is why this unit only has nine
+// functions in the binary.
 static void AESiInvMixKeyBlock(u32* block) {
+    const u8* tab = (const u8*)AESiDecryptTable;
     u8 b[16];
-    u32 i;
+    u32 k;
+    u32 j;
 
     memcpy(b, block, sizeof(b));
-    for (i = 0; i < 4; i++) {
-        ((u8*)block)[4 * i] = AESiMult(b[4 * i], 0xE) ^ AESiMult(b[4 * i + 1], 0xB) ^ AESiMult(b[4 * i + 2], 0xD) ^ AESiMult(b[4 * i + 3], 0x9);
-        ((u8*)block)[4 * i + 1] = AESiMult(b[4 * i], 0x9) ^ AESiMult(b[4 * i + 1], 0xE) ^ AESiMult(b[4 * i + 2], 0xB) ^ AESiMult(b[4 * i + 3], 0xD);
-        ((u8*)block)[4 * i + 2] = AESiMult(b[4 * i], 0xD) ^ AESiMult(b[4 * i + 1], 0x9) ^ AESiMult(b[4 * i + 2], 0xE) ^ AESiMult(b[4 * i + 3], 0xB);
-        ((u8*)block)[4 * i + 3] = AESiMult(b[4 * i], 0xB) ^ AESiMult(b[4 * i + 1], 0xD) ^ AESiMult(b[4 * i + 2], 0x9) ^ AESiMult(b[4 * i + 3], 0xE);
-    }
+    k = 0;
+    do {
+        j = 0;
+        do {
+            u32 sum = 0;
+            u32 term = 0;
+
+            do {
+                u8 a = AESiSubShiftTable[b[4 * k + term]];
+                sum ^= tab[4 * a + ((3 + 3 * j - 3 * term) & 3)];
+            } while (++term < 4);
+            ((u8*)block)[4 * k + j] = (u8)sum;
+        } while (++j < 4);
+    } while (++k < 4);
 }
 
 void AESiEncryptBlock(NET_AESContext* ctx, const u8* input, u8* output) {
@@ -209,9 +209,10 @@ void AESiEncryptBlock(NET_AESContext* ctx, const u8* input, u8* output) {
 
     numRounds = ctx->keys == 4 ? 10 : ctx->keys == 6 ? 12 : 14;
 
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
+    i = 0;
+    do {
         state[i] = input[i] ^ ((const u8*)ctx->Key)[i];
-    }
+    } while (++i < AES_BLOCK_SIZE);
 
     for (round = 1; round <= numRounds; round++) {
         const u8* rk = (const u8*)(ctx->Key + round * 4);
@@ -219,25 +220,29 @@ void AESiEncryptBlock(NET_AESContext* ctx, const u8* input, u8* output) {
         u32 j;
 
         if (round < numRounds) {
-            for (k = 0; k < 4; k++) {
-                for (j = 0; j < 4; j++) {
+            k = 0;
+            do {
+                j = 0;
+                do {
                     u32 sum = 0;
-                    u32 term;
+                    u32 term = 0;
 
-                    for (term = 0; term < 4; term++) {
+                    do {
                         // the T-table already includes the S-box
                         u8 a = state[4 * ((k + term) & 3) + term];
                         sum ^= tab[4 * a + ((3 - j + term) & 3)];
-                    }
+                    } while (++term < 4);
                     next[4 * k + j] = (u8)sum ^ rk[4 * k + j];
-                }
-            }
+                } while (++j < 4);
+            } while (++k < 4);
         } else {
-            for (k = 0; k < 4; k++) {
-                for (j = 0; j < 4; j++) {
+            k = 0;
+            do {
+                j = 0;
+                do {
                     next[4 * k + j] = AESiSubShiftTable[state[4 * ((k + j) & 3) + j]] ^ rk[4 * k + j];
-                }
-            }
+                } while (++j < 4);
+            } while (++k < 4);
         }
         memcpy(state, next, AES_BLOCK_SIZE);
     }
@@ -263,9 +268,10 @@ void AESiDecryptBlock(NET_AESContext* ctx, const u8* input, u8* output) {
         AESiInvMixKeyBlock(&keySchedule[round * 4]);
     }
 
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
+    i = 0;
+    do {
         state[i] = input[i] ^ ((const u8*)(keySchedule + totalWords - 4))[i];
-    }
+    } while (++i < AES_BLOCK_SIZE);
 
     for (round = 1; round <= numRounds; round++) {
         const u8* rk = (const u8*)(keySchedule + (numRounds - round) * 4);
@@ -273,25 +279,29 @@ void AESiDecryptBlock(NET_AESContext* ctx, const u8* input, u8* output) {
         u32 j;
 
         if (round < numRounds) {
-            for (k = 0; k < 4; k++) {
-                for (j = 0; j < 4; j++) {
+            k = 0;
+            do {
+                j = 0;
+                do {
                     u32 sum = 0;
-                    u32 term;
+                    u32 term = 0;
 
-                    for (term = 0; term < 4; term++) {
+                    do {
                         // the T-table already includes the inverse S-box
                         u8 a = state[4 * ((k - term) & 3) + term];
                         sum ^= tab[4 * a + ((3 + 3 * j - 3 * term) & 3)];
-                    }
+                    } while (++term < 4);
                     next[4 * k + j] = (u8)sum ^ rk[4 * k + j];
-                }
-            }
+                } while (++j < 4);
+            } while (++k < 4);
         } else {
-            for (k = 0; k < 4; k++) {
-                for (j = 0; j < 4; j++) {
+            k = 0;
+            do {
+                j = 0;
+                do {
                     next[4 * k + j] = AESiInvSubShiftTable[state[4 * ((k - j) & 3) + j]] ^ rk[4 * k + j];
-                }
-            }
+                } while (++j < 4);
+            } while (++k < 4);
         }
         memcpy(state, next, AES_BLOCK_SIZE);
     }
@@ -330,12 +340,12 @@ int NETAESCreateEx(NET_AESContext* ctx, const u8* key, u32 keySize, const u8* iv
             // RotWord
             value = (value << 24) | (value >> 8);
             value = AESiSubShiftTable[value & 255] | (AESiSubShiftTable[(value >> 8) & 255] << 8) | (AESiSubShiftTable[(value >> 16) & 255] << 16) |
-                    (AESiSubShiftTable[(value >> 24) & 255] << 24);
+                    ((u32)AESiSubShiftTable[(value >> 24) & 255] << 24);
             // rcon goes to the first byte of the word in memory
             ((u8*)&value)[0] ^= AESiRoundKeyRcon0[i / numWords - 1];
         } else if (numWords == 8 && (i % numWords) == 4) {
             value = AESiSubShiftTable[value & 255] | (AESiSubShiftTable[(value >> 8) & 255] << 8) | (AESiSubShiftTable[(value >> 16) & 255] << 16) |
-                    (AESiSubShiftTable[(value >> 24) & 255] << 24);
+                    ((u32)AESiSubShiftTable[(value >> 24) & 255] << 24);
         }
         // (s32) cast: numWords is unsigned; the negation must wrap in
         // 32-bit pointer arithmetic (as it does on the 32-bit target).
@@ -380,9 +390,10 @@ static void NETiAESEncryptoBlock(NET_AESContext* ctx, const u8* in, u8* out) {
     u8 chain[AES_BLOCK_SIZE];
     u32 i;
 
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
+    i = 0;
+    do {
         chain[i] = in[i] ^ ctx->Iv[i];
-    }
+    } while (++i < AES_BLOCK_SIZE);
     AESiEncryptBlock(ctx, chain, out);
     memcpy(ctx->Iv, out, AES_BLOCK_SIZE);
 }
@@ -396,9 +407,10 @@ static void NETiAESDecryptoBlock(NET_AESContext* ctx, const u8* in, u8* out) {
     // overwrite *in with the plaintext before this function returns
     memcpy(prev, in, AES_BLOCK_SIZE);
     AESiDecryptBlock(ctx, in, chain);
-    for (i = 0; i < AES_BLOCK_SIZE; i++) {
+    i = 0;
+    do {
         out[i] = chain[i] ^ ctx->Iv[i];
-    }
+    } while (++i < AES_BLOCK_SIZE);
     memcpy(ctx->Iv, prev, AES_BLOCK_SIZE);
 }
 
