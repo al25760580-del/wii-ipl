@@ -22,11 +22,11 @@ typedef struct NETMD5Context {
         };
         u32 state[4];
     };  // 0x00
-    u64 length;  // 0x04
+    u64 length;  // 0x10
     union {
         u32 buffer32[16];
         u8 buffer8[64];
-    };  // 0x0C
+    };  // 0x18
 } NETMD5Context;
 
 #define NET_MD5_DIGEST_SIZE 16
@@ -48,7 +48,10 @@ static void NETCalcMD5(void* digest, const void* input, u32 length) {
 /* == SHA1 == */
 
 typedef struct NETSHA1Context {
-    u8 unk_0x00[0x60];  // 0x00
+    u32 state[5];    // 0x00
+    u32 count[2];    // 0x14
+    u8 buffer[64];   // 0x1C
+    u8 unk_0x5C[4];  // 0x5C
 } NETSHA1Context;
 
 #define NET_SHA1_DIGEST_SIZE 20
