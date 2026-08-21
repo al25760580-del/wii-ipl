@@ -9,6 +9,8 @@ typedef signed long pf_s32;
 typedef unsigned char pf_u8;
 typedef unsigned short pf_u16;
 typedef unsigned long pf_u32;
+typedef signed long long pf_s64;
+typedef unsigned long long pf_u64;
 
 typedef char pf_ch8;
 typedef int pf_int32;

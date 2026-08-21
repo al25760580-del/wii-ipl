@@ -9,9 +9,9 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
+#include <private/fa/PrFILE2/standard/pf_fsfirst.h>
 #include <private/fa/PrFILE2/fatfs/pf_volume.h>
 #include <private/fa/PrFILE2/standard/pf_api_util.h>
-#include <private/fa/PrFILE2/standard/pf_fsfirst.h>
 
 // pf2_fsfirst - 0x815E54F8, 116 bytes
 // from RevoEX VF (this repo, Matching)

@@ -9,10 +9,10 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
-#include <private/fa/PrFILE2/common/pf_clib.h>
-#include <private/fa/PrFILE2/driver/pf_driver.h>
 #include <private/fa/PrFILE2/fatfs/pf_cache.h>
 #include <private/fa/PrFILE2/fatfs/pf_sector.h>
+#include <private/fa/PrFILE2/common/pf_clib.h>
+#include <private/fa/PrFILE2/driver/pf_driver.h>
 #include <private/fa/PrFILE2/fatfs/pf_volume.h>
 
 // PFSEC_ReadFAT - 0x815DF774, 196 bytes
@@ -107,7 +107,7 @@ pf_s32 PFSEC_WriteFAT(PF_VOLUME* p_vol, const pf_u8* p_buf, pf_u32 sector, pf_u1
 // from RevoEX VF (this repo, Matching)
 
 pf_s32 PFSEC_WriteData(PF_VOLUME* p_vol, const pf_u8* p_buf, pf_u32 sector, pf_u16 offset, pf_u32 size, pf_u32* p_success_size, pf_bool is_direct,
-                       pf_bool set_sig) {
+                          pf_bool set_sig) {
     pf_s32 err;
     PF_CACHE_PAGE* p_page;
 

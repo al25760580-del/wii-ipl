@@ -9,9 +9,9 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
+#include <private/fa/PrFILE2/standard/pf_getdev.h>
 #include <private/fa/PrFILE2/fatfs/pf_volume.h>
 #include <private/fa/PrFILE2/standard/pf_api_util.h>
-#include <private/fa/PrFILE2/standard/pf_getdev.h>
 
 // pf2_devinf - 0x815E563C, 40 bytes
 // from ogws (Wii Sports VF, CC0)

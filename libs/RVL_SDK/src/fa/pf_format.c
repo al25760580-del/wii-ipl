@@ -9,9 +9,9 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
+#include <private/fa/PrFILE2/standard/pf_format.h>
 #include <private/fa/PrFILE2/fatfs/pf_volume.h>
 #include <private/fa/PrFILE2/standard/pf_api_util.h>
-#include <private/fa/PrFILE2/standard/pf_format.h>
 
 // pf2_format - 0x815E543C, 40 bytes
 // from RevoEX VF (this repo, Matching)

@@ -9,9 +9,9 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
+#include <private/fa/PrFILE2/standard/pf_fopen.h>
 #include <private/fa/PrFILE2/fatfs/pf_volume.h>
 #include <private/fa/PrFILE2/standard/pf_api_util.h>
-#include <private/fa/PrFILE2/standard/pf_fopen.h>
 
 // pf2_fopen - 0x815E53A0, 156 bytes
 // from ogws (Wii Sports VF, CC0)

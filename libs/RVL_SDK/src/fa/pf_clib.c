@@ -9,8 +9,8 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
-#include <private/fa/PrFILE2/common/pf_w_clib.h>
 #include <private/fa/PrFILE2/pf_types.h>
+#include <private/fa/PrFILE2/common/pf_w_clib.h>
 
 // pf_toupper - 0x815C5F9C, 24 bytes
 // from ogws (Wii Sports VF, CC0)
@@ -77,7 +77,7 @@ void* pf_memset(void* dst, pf_s32 c, pf_u32 length) {
     return dst;
 }
 
-// pf_memcmp - 0x815C61CC, 120 bytes
+// pf_memcmp - 0x815C61CC, 120 bytes (hand-written)
 pf_s32 pf_memcmp(const void* s1, const void* s2, pf_u32 n) {
     const pf_u8* p1;
     const pf_u8* p2;
@@ -184,7 +184,7 @@ pf_u16* pf_w_strcpy(pf_u16* dst, const pf_u16* src) {
     }
 }
 
-// pf_w_strcmp - 0x815C6354, 56 bytes
+// pf_w_strcmp - 0x815C6354, 56 bytes (hand-written)
 pf_s32 pf_w_strcmp(const pf_u16* s1, const pf_u16* s2) {
     for (; *s1 != 0 && *s1 == *s2; s1++, s2++) {
         ;

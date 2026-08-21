@@ -12,8 +12,7 @@
 #include <private/fa/PrFILE2/fatfs/pf_fatfs.h>
 #include <private/fa/PrFILE2/fatfs/pf_volume.h>
 
-// PFFATFS_initializeFATFS - 0x815D8374, 4 bytes
-// hand-written (both ogws and RevoEX VF match this 4-byte stub shape)
+// PFFATFS_initializeFATFS - 0x815D8374, 4 bytes (hand-written)
 pf_s32 PFFATFS_initializeFATFS(pf_u32 config, void* param) {
     // @bug 4-byte stub in this build: returns without producing a result.
 #pragma unused(config, param)

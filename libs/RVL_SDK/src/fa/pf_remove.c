@@ -9,10 +9,10 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
-#include <private/fa/PrFILE2/common/pf_str.h>
+#include <private/fa/PrFILE2/standard/pf_remove.h>
 #include <private/fa/PrFILE2/fatfs/pf_file.h>
 #include <private/fa/PrFILE2/standard/pf_api_util.h>
-#include <private/fa/PrFILE2/standard/pf_remove.h>
+#include <private/fa/PrFILE2/common/pf_str.h>
 
 // pf2_remove - 0x815E5994, 80 bytes
 // from ogws (Wii Sports VF, CC0)

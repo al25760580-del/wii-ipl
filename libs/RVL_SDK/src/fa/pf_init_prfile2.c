@@ -9,9 +9,9 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
+#include <private/fa/PrFILE2/standard/pf_init_prfile2.h>
 #include <private/fa/PrFILE2/fatfs/pf_fatfs.h>
 #include <private/fa/PrFILE2/standard/pf_api_util.h>
-#include <private/fa/PrFILE2/standard/pf_init_prfile2.h>
 #include <private/fa/PrFILE2/system/pf_system.h>
 
 // pf2_init_prfile2 - 0x815E56B4, 64 bytes

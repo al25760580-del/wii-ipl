@@ -9,9 +9,9 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
-#include <private/fa/PrFILE2/common/pf_code.h>
 #include <private/fa/PrFILE2/local/pf_cp932.h>
 #include <private/fa/PrFILE2/local/pf_cp932_to_unicode.h>
+#include <private/fa/PrFILE2/common/pf_code.h>
 
 // PFCODE_CP932_OEM2Unicode - 0x815E455C, 444 bytes
 // from ogws (Wii Sports VF, CC0)
@@ -35,8 +35,7 @@ pf_s32 PFCODE_CP932_OEM2Unicode(const pf_s8* cp932_src, pf_u16* uc_dst) {
         return PFCODE_Combine_Width(1, 2);
     }
 
-    if (cp932_lead == 0x80 || cp932_lead == 0x85 || cp932_lead == 0x86 || cp932_lead == 0xA0 || cp932_lead == 0xEB || cp932_lead == 0xEC ||
-        (cp932_lead >= 0xEF && cp932_lead <= 0xF9) || (cp932_lead >= 0xFD && cp932_lead == 0xFF)) {
+    if (cp932_lead == 0x80 || cp932_lead == 0x85 || cp932_lead == 0x86 || cp932_lead == 0xA0 || cp932_lead == 0xEB || cp932_lead == 0xEC || (cp932_lead >= 0xEF && cp932_lead <= 0xF9) || (cp932_lead >= 0xFD && cp932_lead == 0xFF)) {
         *uc_dst = 0x5F;
         return PFCODE_Combine_Width(1, 2);
     }

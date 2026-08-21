@@ -9,11 +9,11 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
+#include <private/fa/PrFILE2/pf_types.h>
 #include <private/fa/PrFILE2/common/pf_clib.h>
-#include <private/fa/PrFILE2/common/pf_str.h>
 #include <private/fa/PrFILE2/common/pf_w_clib.h>
 #include <private/fa/PrFILE2/fatfs/pf_volume.h>
-#include <private/fa/PrFILE2/pf_types.h>
+#include <private/fa/PrFILE2/common/pf_str.h>
 
 // PFSTR_SetCodeMode - 0x815C652C, 8 bytes
 // from ogws (Wii Sports VF, CC0)

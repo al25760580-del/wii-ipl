@@ -9,10 +9,10 @@
 // Differences flagged below must be re-checked with objdiff; this unit is
 // kept NonMatching until then.
 
-#include <private/fa/PrFILE2/common/pf_str.h>
+#include <private/fa/PrFILE2/standard/pf_mkdir.h>
 #include <private/fa/PrFILE2/fatfs/pf_dir.h>
 #include <private/fa/PrFILE2/standard/pf_api_util.h>
-#include <private/fa/PrFILE2/standard/pf_mkdir.h>
+#include <private/fa/PrFILE2/common/pf_str.h>
 
 // pf2_chdir - 0x815E4D74, 80 bytes
 // from RevoEX VF (this repo, Matching)
