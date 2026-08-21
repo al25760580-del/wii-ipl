@@ -103,7 +103,11 @@ PR, so treat these as ±0.1%):
 | + PR #43 `AXFX` | +0.40% | 38 new matches |
 | + PR #44 `MSL` | +1.74% | 178 new matches |
 | + PR #38 `CHANSVm` | +1.35% | 284 new matches, big CHANSVm rework |
-| **this branch (expected)** | **≈58.3%** | linked code ≈45.6%; needs a fresh build to confirm |
+| **this branch (expected)** | **≈59.2%** | needs a fresh build to confirm |
+
+> The roadmap to 70% matched code (43U) is in `docs/DECOMPILATION_PLAN.md`:
+> phases, byte budgets per library, and verification gates. Keep both files in
+> sync when milestones close.
 
 `configure.py` object status counts on this branch: **651 Matching**,
 **50 Equivalent**, **338 NonMatching**.
