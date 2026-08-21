@@ -3,6 +3,14 @@
 // SHA-1 as specified by FIPS 180-1 (see also RFC 3174), plus the generic
 // digest interface returned by NETGetSHA1Interface which is consumed by
 // NETHMACInit (hmac.c).
+//
+// Loop shapes were chosen with tools/size_check.py: CodeWarrior at -O4,p
+// unrolls counted `for` loops but not `do/while` loops, and the original
+// function sizes tell which is which. With the W schedule expanded by an
+// unrolled loop and the four round groups kept as do/while loops,
+// NETSHA1iProcessBlock goes from 0x67C to 0x33C against the original 0x39C
+// (all-`for` gives 0x67C, all-`do/while` 0x22C), and NETSHA1GetDigest from
+// 0x21C to 0x160 against 0x12C. Still not byte-exact: needs objdiff.
 
 #include <revolution/net/NETDigest.h>
 
@@ -14,8 +22,10 @@ typedef struct NETDigestInterface {
     void (*getDigest)(void* ctx, void* digest);
 } NETDigestInterface;
 
-static u8 padlead = 0x80;
-static u8 padalign[4];
+// padlead$2309 lives in .sdata2 (const) and padalign$2310 in .sbss2 (const,
+// 8 bytes) in the original binary, so both are const here.
+static const u8 padlead = 0x80;
+static const u8 padalign[8];
 
 static const NETDigestInterface sha1template = {
     (void (*)(void*))NETSHA1Init,
@@ -79,26 +89,23 @@ void NETSHA1GetDigest(NETSHA1Context* context, void* digest) {
     bits[6] = (u8)(context->count[0] >> 8);
     bits[7] = (u8)context->count[0];
 
-    padlead = 0x80;
-    padalign[0] = 0;
-    padalign[1] = 0;
-    padalign[2] = 0;
-    padalign[3] = 0;
-
     // padlead was already appended, so only the remaining zero bytes follow.
     NETSHA1Update(context, &padlead, 1);
-    while (padLength > 1) {
-        NETSHA1Update(context, padalign, padLength - 1 >= 4 ? 4 : padLength - 1);
-        padLength -= padLength - 1 >= 4 ? 4 : padLength - 1;
+    padLength--;
+    while (padLength != 0) {
+        u32 chunk = padLength >= sizeof(padalign) ? sizeof(padalign) : padLength;
+        NETSHA1Update(context, padalign, chunk);
+        padLength -= chunk;
     }
     NETSHA1Update(context, bits, 8);
 
-    for (i = 0; i < 5; i++) {
+    i = 0;
+    do {
         ((u8*)digest)[i * 4] = (u8)(context->state[i] >> 24);
         ((u8*)digest)[i * 4 + 1] = (u8)(context->state[i] >> 16);
         ((u8*)digest)[i * 4 + 2] = (u8)(context->state[i] >> 8);
         ((u8*)digest)[i * 4 + 3] = (u8)context->state[i];
-    }
+    } while (++i < 5);
 
     memset(context, 0, sizeof(NETSHA1Context));
 }
@@ -111,14 +118,15 @@ void NETSHA1iProcessBlock(NETSHA1Context* context) {
     u32 d;
     u32 e;
     u32 i;
+    u32 temp;
 
     for (i = 0; i < 0x10; i++) {
         w[i] = ((u32)context->buffer[i * 4] << 24) | ((u32)context->buffer[i * 4 + 1] << 16) | ((u32)context->buffer[i * 4 + 2] << 8) |
                (u32)context->buffer[i * 4 + 3];
     }
-    for (i = 0x10; i < 0x50; i++) {
+    do {
         w[i] = ROTATE_LEFT(w[i - 3] ^ w[i - 8] ^ w[i - 14] ^ w[i - 16], 1);
-    }
+    } while (++i < 0x50);
 
     a = context->state[0];
     b = context->state[1];
@@ -126,38 +134,42 @@ void NETSHA1iProcessBlock(NETSHA1Context* context) {
     d = context->state[3];
     e = context->state[4];
 
-    for (i = 0; i < 0x14; i++) {
-        u32 temp = ROTATE_LEFT(a, 5) + ((b & c) | (~b & d)) + e + w[i] + 0x5A827999;
+    i = 0;
+    do {
+        temp = ROTATE_LEFT(a, 5) + ((b & c) | (~b & d)) + e + w[i] + 0x5A827999;
         e = d;
         d = c;
         c = ROTATE_LEFT(b, 30);
         b = a;
         a = temp;
-    }
-    for (i = 0x14; i < 0x28; i++) {
-        u32 temp = ROTATE_LEFT(a, 5) + (b ^ c ^ d) + e + w[i] + 0x6ED9EBA1;
+    } while (++i < 0x14);
+    i = 0x14;
+    do {
+        temp = ROTATE_LEFT(a, 5) + (b ^ c ^ d) + e + w[i] + 0x6ED9EBA1;
         e = d;
         d = c;
         c = ROTATE_LEFT(b, 30);
         b = a;
         a = temp;
-    }
-    for (i = 0x28; i < 0x3C; i++) {
-        u32 temp = ROTATE_LEFT(a, 5) + ((b & c) | (b & d) | (c & d)) + e + w[i] + 0x8F1BBCDC;
+    } while (++i < 0x28);
+    i = 0x28;
+    do {
+        temp = ROTATE_LEFT(a, 5) + ((b & c) | (b & d) | (c & d)) + e + w[i] + 0x8F1BBCDC;
         e = d;
         d = c;
         c = ROTATE_LEFT(b, 30);
         b = a;
         a = temp;
-    }
-    for (i = 0x3C; i < 0x50; i++) {
-        u32 temp = ROTATE_LEFT(a, 5) + (b ^ c ^ d) + e + w[i] + 0xCA62C1D6;
+    } while (++i < 0x3C);
+    i = 0x3C;
+    do {
+        temp = ROTATE_LEFT(a, 5) + (b ^ c ^ d) + e + w[i] + 0xCA62C1D6;
         e = d;
         d = c;
         c = ROTATE_LEFT(b, 30);
         b = a;
         a = temp;
-    }
+    } while (++i < 0x50);
 
     context->state[0] += a;
     context->state[1] += b;
