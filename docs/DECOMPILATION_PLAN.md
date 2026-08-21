@@ -144,6 +144,10 @@ Orden sugerido: `fa` (164.4 KiB, 12 TUs) → `wad.c` (24.5) → `WPADHIDParser.c
   y los fatfs grandes (`pf_file`, `pf_dir`, `pf_fat`, `pf_volume`,
   `pf_cache`, `pf_entry`, `pf_entry_iterator`, `pf_path`, `pf_cluster`,
   `pf_fat12/16/32`, `pdm_*`). Ver commits `a77d16e8`.
+- ~~`wad.c` (24.5)~~ pendiente de referencia. `WPADHIDParser.c` (21.7) e
+  `i2c.c`: **portados de Petari (CC0, sin diff)** — ver `LLM_CONTEXT.md`.
+  `vi.c`/`vi3in1.c`/`KPAD.c`: bloqueados (funciones globales de este binario
+  que Petari no tiene; requieren objdiff/disassembly).
 - Cada TU se marca `Matching` individualmente; la librería completa al final.
 
 ### Fase 4 — eZiText + teclado (≈ +2.5 pts → **67.5%**)

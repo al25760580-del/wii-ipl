@@ -213,6 +213,27 @@ symbols/sizes match this binary exactly.
 5. `nettime.c`: original `.sbss` 8-byte static (possibly a cached tick
    value) left to binary fallback; may also apply a UTC offset.
 
+### RVL_SDK portes Petari (Fase 3, 2026-08-21)
+
+Petari (doldecomp, **CC0**, decomp de Super Mario Galaxy) comparte linaje de
+build del RVL_SDK; sus símbolos VI coinciden en tamaño con este binario
+(19/21 VI, 17/17 handlers `__VI`). Portados (sin diff, `NonMatching`):
+
+- `wpad/WPADHIDParser.c` — los 22 funciones del TU están en Petari; mapeadas
+  a los nombres de este build (`WPADControlBlock`→`WPADCB` con renombres de
+  campos, unión `.u` de `WPADExtConfig`, `oldFw`→`configIndex`, enums
+  `WPAD_FMT_*`→`WPAD_*_BTN_*`, etc.). Compila contra los headers del repo.
+- `vi/i2c.c` — cubre el TU exacto (`sendSlaveAddr`, `__VISendI2CData`);
+  `WaitMicroTime` hecho static (el global vive en el fallback binario de
+  vi.c); los helpers solo-Petari quedan como código extra hasta objdiff.
+
+**Bloqueados (análisis documentado)**: `vi/vi.c` (faltan
+`__VISetAdjustingValues`, `__VIResetSIIdle` [llamado por Pad.c], `WaitMicroTime`
+— este último existe en el i2c.c de Petari), `vi/vi3in1.c` (faltan
+`__VIInit3in1` [llamado por BS2.c], `VISetMacrovision`, `__VISetRevolutionMode`),
+`kpad/KPAD.c` (build distinto: funciones faltantes/sobrantes respecto al
+binario). Requieren objdiff/disassembly para completarse sin romper el link.
+
 ### fa library core (Fase 3 del plan, 2026-08-21)
 
 The RVL_SDK `fa` library (PrFILE2 FAT) had **no sources** (~164 KiB binary
