@@ -208,6 +208,34 @@ symbols/sizes match this binary exactly.
 5. `nettime.c`: original `.sbss` 8-byte static (possibly a cached tick
    value) left to binary fallback; may also apply a UTC offset.
 
+### fa library core (Fase 3 del plan, 2026-08-21)
+
+The RVL_SDK `fa` library (PrFILE2 FAT) had **no sources** (~164 KiB binary
+fallback). Ported the core (29 of 174 TUs, ~1,500 lines) reconstructing the
+same pf code base from two sibling references:
+
+- **ogws (doldecomp, CC0)** — the Wii Sports VF decomp; its `VFipf_*`
+  symbols were cross-checked function-by-function against this binary's
+  `fa` symbols by size (89 exact matches); it carries the fa-only features
+  (`PFSTR_SetLocalStr`, `PF_STR.p_local`, `PF_STR_CODEMODE_LOCAL`,
+  `pf2_*` API wrappers).
+- **this repo's own Matching RevoEX VF** — same lineage with `VFi`
+  prefixes (used where ogws differs, e.g. `pf_sector.c` signatures).
+
+New private header tree: `libs/RVL_SDK/include/private/fa/` (61 headers,
+generated from the RevoEX VF private headers with `VFi*` renamed).
+
+Ported TUs: `pf_clib`, `pf_str`, `pf_service`, `pf_code`, `pf_system`,
+`pf_sector`, `pf_cp932`, `pf_fatfs` + 21 `pf2_*` singletons. Hand-written:
+`pf_memcmp`, `pf_w_strcmp` (absent from both references),
+`PFFATFS_initializeFATFS` (4-byte stub in this build).
+Still binary fallback: `api/FA*`, `pf_w_*`, `pfs_*`, `pf_stub*`,
+`driver/*`, `msc/*`, `kernel/pfk_api.c` and the big `fatfs` dir/file TUs
+(`pf_file`, `pf_dir`, `pf_fat`, `pf_volume`, `pf_cache`, `pf_entry`,
+`pf_entry_iterator`, `pf_path`, `pf_cluster`, `pf_fat12/16/32`, `pdm_*`).
+Every function is annotated with provenance + size mismatches; all units
+stay NonMatching until objdiff verification.
+
 Whoever has the binary: run `ninja` with objdiff open, check the five units,
 and adjust. Do **not** mark these `Matching` until verified.
 

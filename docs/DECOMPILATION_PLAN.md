@@ -137,6 +137,13 @@ Orden sugerido: `fa` (164.4 KiB, 12 TUs) → `wad.c` (24.5) → `WPADHIDParser.c
   (5.5% del código total) y es **código SDK compartido**: ogws/open_rvl y otros
   decomps tienen versiones cercanas para cotejar estructura (adaptando al
   build CW de la IPL, nunca copiando a ciegas).
+- ~~`fa`~~ — **avance (sin diff)**: núcleo portado (29/174 TUs) desde
+  ogws (CC0, tamaños cotejados por símbolo) + el VF matcheado del propio
+  repo; headers privados creados (`include/private/fa`). Pendiente:
+  `api/FA*`, `pf_w_*`, `pfs_*`, `pf_stub*`, drivers, `msc`, `kernel/pfk_api`
+  y los fatfs grandes (`pf_file`, `pf_dir`, `pf_fat`, `pf_volume`,
+  `pf_cache`, `pf_entry`, `pf_entry_iterator`, `pf_path`, `pf_cluster`,
+  `pf_fat12/16/32`, `pdm_*`). Ver commits `a77d16e8`.
 - Cada TU se marca `Matching` individualmente; la librería completa al final.
 
 ### Fase 4 — eZiText + teclado (≈ +2.5 pts → **67.5%**)
