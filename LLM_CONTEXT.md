@@ -205,6 +205,10 @@ closer; both re-verified on the host against RFC 1321 / FIPS 180-1):
 | `md5.c` NETMD5GetDigest | 0x230 | **0x148** | 0x128 |
 | `sha1.c` NETSHA1iProcessBlock | 0x67C | **0x33C** | 0x39C |
 | `sha1.c` NETSHA1GetDigest | 0x21C | **0x160** | 0x12C |
+| `aes.c` AESiDecryptBlock | 0x8E0 | **0x2D4** | 0x3EC |
+| `aes.c` AESiEncryptBlock | 0x3A8 | **0x1D8** | 0x278 |
+| `aes.c` NETAESEncrypt | 0x11C | **0xAC** | 0xB8 |
+| `aes.c` NETAESDecrypt | 0x12C | **0xBC** | 0xB8 |
 
 Two findings that generalize to the whole project:
 
@@ -217,8 +221,22 @@ Two findings that generalize to the whole project:
    Nintendo source used. This single rule cut ~1.5 KiB from md5/sha1 and is
    worth trying on any oversized ported unit (aes.c, TMC_JPEG, fa).
 
+3. **Count the functions before writing helpers.** `aes.c` has exactly nine
+   symbols in `.text` (they sum to the unit's whole span), so the GF-multiply
+   helpers the port had invented cannot exist; the inverse key schedule is
+   built from the decrypt T-table instead (it already carries InvMixColumns
+   composed with the inverse S-box, so feeding it the forward S-box of a key
+   byte leaves plain InvMixColumns). Same reasoning applies to md5.c, whose
+   four functions sum exactly to its `.text` span.
+
 `sha1.c` also had `padlead`/`padalign` as mutable statics; symbols.txt places
 them in `.sdata2`/`.sbss2`, i.e. const, and `padalign` is 8 bytes, not 4.
+
+Open lead for `hmac.c` (still the worst of the block): `sha1template` is
+0x20 bytes in `.rodata`, i.e. **eight words, not three function pointers**,
+so the digest interface carries more fields (context size / block size /
+digest size are the obvious candidates). That also explains why the original
+`NETHMACGetDigest` is 0x1A4 while a hardcoded-20-byte version is only 0x80.
 
 **Not yet matching** (needs objdiff against the original binary):
 
