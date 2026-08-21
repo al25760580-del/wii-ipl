@@ -4,6 +4,11 @@ This file is intended for LLM agents (and humans) working on this repository.
 It summarizes the project, the current state, the conventions that matter for
 matching, and where the next decompilation work should go.
 
+> General project/platform overview for agents: see `CLAUDE.md` (project
+> layout, build commands, reference projects, hardware context). This file
+> is the living *state* document; `docs/DECOMPILATION_PLAN.md` is the roadmap
+> to 70%.
+
 > Last updated: 2026-08-21, after merging PRs #38–#44 from
 > `koopthekoopa/wii-ipl` into `arena/01a02263-wii-ipl` and decompiling the
 > RevoEX `net` digest sources (MD5 / SHA-1 / HMAC).
