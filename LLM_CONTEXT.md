@@ -230,8 +230,10 @@ same pf code base from two sibling references:
 New private header tree: `libs/RVL_SDK/include/private/fa/` (61 headers,
 generated from the RevoEX VF private headers with `VFi*` renamed).
 
-Ported TUs: `pf_clib`, `pf_str`, `pf_service`, `pf_code`, `pf_system`,
-`pf_sector`, `pf_cp932`, `pf_fatfs` + 21 `pf2_*` singletons. Hand-written:
+Ported TUs (31/174): `pf_clib`, `pf_str`, `pf_service`, `pf_code`,
+`pf_system`, `pf_sector`, `pf_cp932`, `pf_fatfs`, **`pf_path`** (27 PFPATH_*
+funcs, 15 exact-size; fa-lineage signatures/layouts from ogws),
+**`pdm_api`** + 21 `pf2_*` singletons. Hand-written:
 `pf_memcmp`, `pf_w_strcmp` (absent from both references),
 `PFFATFS_initializeFATFS` (4-byte stub in this build).
 Still binary fallback: `api/FA*`, `pf_w_*`, `pfs_*`, `pf_stub*`,
