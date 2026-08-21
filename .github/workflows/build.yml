@@ -7,6 +7,10 @@ on:
 
 jobs:
   build:
+    # The build container is private to koopthekoopa/wii-ipl, so forks can
+    # never pull it; they use build-dol.yml instead.
+    if: github.repository == 'koopthekoopa/wii-ipl'
+
     # This is a *private* build container.
     container: ghcr.io/koopthekoopa/wii-ipl-build:main
 

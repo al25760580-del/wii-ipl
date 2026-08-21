@@ -1,0 +1,98 @@
+name: Build DOL (fork)
+
+# Fork-friendly build: unlike build.yml this does not need the private
+# upstream container. It reconstructs the toolchain from public releases and
+# takes the original Wii Menu image from a repository secret, so it can
+# produce a linked, Dolphin-testable main.dol on any fork.
+#
+# Requirements:
+#   1. Actions enabled on the fork (Settings -> Actions -> General).
+#   2. A repository secret ORIG_43U_APP_B64 holding the base64 of the
+#      original 00000008.app extracted from a 4.3U Wii Menu WAD:
+#        gh secret set ORIG_43U_APP_B64 --repo <owner>/wii-ipl \
+#            --body "$(base64 -w0 00000008.app)"
+#      The image is never committed and never appears in an artifact.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Wii Menu version to build
+        type: choice
+        default: '43U'
+        options: ['43U', '43E', '43J', '43K']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ inputs.version || '43U' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install ninja
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Check for the original image
+        env:
+          ORIG_43U_APP_B64: ${{ secrets.ORIG_43U_APP_B64 }}
+        run: |
+          if [ -z "$ORIG_43U_APP_B64" ]; then
+            echo "::error::Secret ORIG_43U_APP_B64 is not set; see the header of this workflow."
+            exit 1
+          fi
+          if [ "$VERSION" != "43U" ]; then
+            echo "::error::Only 43U has an image secret configured."
+            exit 1
+          fi
+
+      - name: Restore the original image
+        env:
+          ORIG_43U_APP_B64: ${{ secrets.ORIG_43U_APP_B64 }}
+        run: |
+          mkdir -p orig/43U
+          printf '%s' "$ORIG_43U_APP_B64" | base64 -d > orig/43U/00000008.app
+          ls -l orig/43U
+
+      - name: Cache toolchain and build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+            .ninja_deps
+            .ninja_log
+          key: ${{ runner.os }}-dol-${{ env.VERSION }}-${{ github.sha }}
+          restore-keys: ${{ runner.os }}-dol-${{ env.VERSION }}-
+
+      - name: Configure
+        run: python configure.py --map --version "$VERSION"
+
+      - name: Download toolchain
+        run: ninja tools
+
+      - name: Build
+        run: ninja all_source progress "build/$VERSION/report.json"
+
+      - name: Verify compiled unit sizes
+        continue-on-error: true
+        run: |
+          python tools/size_check.py --preset net --preset fa --preset wpad \
+              --preset vi --version "$VERSION" --summary
+
+      - name: Upload main.dol and report
+        uses: actions/upload-artifact@v4
+        with:
+          name: wii-menu-main-dol-${{ env.VERSION }}
+          path: |
+            build/${{ env.VERSION }}/main.dol
+            build/${{ env.VERSION }}/report.json
+          if-no-files-found: error
