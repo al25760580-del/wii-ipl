@@ -120,8 +120,10 @@ Objetivo: `CHANSVm.c` completo (`Matching`).
   esta sesión, funcionalmente verificados pero **sin diff**): corregir contra
   objdiff (`k$2351` de md5, `sha1template` 0x20, layout HMAC 0xD4) y pasar
   `net/md5.c`, `net/sha1.c`, `net/hmac.c` a `Matching` (8.5 KiB).
-- Escribir los TUs faltantes de `net`: `aes.c` (spec-determined, FIPS 197;
-  verificar con vectores antes de diffear), `nettime.c`, `neterrorcode.c`.
+- ~~Escribir los TUs faltantes de `net`~~ — **hecho (sin diff): `aes.c`
+  (API NETAES* completa + tablas, verificado FIPS 197/SP 800-38A) y
+  `nettime.c` (NETGetUniversalCalendar). Falta `neterrorcode.c`** y la
+  verificación objdiff de todo el bloque `net` (commit `4c148a4c`).
 - `AXFXReverbStdExp.c` (5.8 KiB, único axfx sin match; el PR #43 dejó el patrón
   listo en los archivos hermanos).
 

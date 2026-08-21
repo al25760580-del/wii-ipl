@@ -169,15 +169,26 @@ New sources for TUs that previously fell back to the original binary:
   `sha1template`; statics `padlead`/`padalign`.
 - `libs/RevoEX/src/net/hmac.c` — `NETHMACInit/Update/GetDigest` (RFC 2104,
   generic over the digest interface), `NETHMACContext` = 0xD4 bytes.
+- `libs/RevoEX/src/net/aes.c` — full `NET_AES*` API: `NETAESCreateEx/Create/
+  Delete/Encrypt/Decrypt`, `AESiEncryptBlock/AESiDecryptBlock`,
+  `NETiAESEncryptoBlock/NETiAESDecryptoBlock` + the 5 `AESi*` tables
+  (S-boxes, `AESiRoundKeyRcon0[30]`, `AESiEncryptTable/DecryptTable`).
+  Decrypt pre-mixes round keys with InvMixColumns (word-wise), matching the
+  equivalent inverse cipher.
+- `libs/RevoEX/src/net/nettime.c` — `NETGetUniversalCalendar` =
+  `OSTicksToCalendarTime(OSGetTime(), …)`; semantics pinned by the matched
+  callers in `CHANSVm.c` and `iplNwc24Manager.cpp`.
 - `libs/RevoEX/include/revolution/net/NETDigest.h` — `NETSHA1Context` fields
   filled in (was opaque); fixed wrong offset comments on `NETMD5Context`
   (`length` is at 0x10, buffer at 0x18).
 
-**Correctness**: functionally verified on host gcc against the RFC 1321 MD5,
-FIPS 180-1 SHA-1 and RFC 2202 HMAC-SHA1 test suites (incl. multi-block,
-chunked-update and long-key cases; ASan clean). Interfaces were pinned by the
-already-matched callers in `src/channelScript/CHANSVm.c` and
-`src/system/iplNandSDWorker.cpp`.
+**Correctness**: all of the above verified on host gcc against the RFC 1321
+MD5, FIPS 180-1 SHA-1, RFC 2202 HMAC-SHA1, **FIPS 197 Appendix C AES ECB
+(128/192/256)** and **NIST SP 800-38A F.2 CBC-AES128** test suites (incl.
+multi-block, chunked-update, long-key and in-place cases; ASan clean).
+Interfaces were pinned by the already-matched callers and, for AES, by the
+Wii no Ma channel decomp (WiiLink24/wii-no-ma-patches) whose RevoEX net
+symbols/sizes match this binary exactly.
 
 **Not yet matching** (needs objdiff against the original binary):
 
@@ -189,8 +200,15 @@ already-matched callers in `src/channelScript/CHANSVm.c` and
    0x10 bytes `.sdata`; my `NETHMACContext` layout (interface, inner ctx,
    outer ctx, `unk_0xC4[0x10]`) is inferred — must stay exactly 0xD4 bytes
    because matched CHANSVm code allocates it on the stack.
+4. `aes.c`: unknown `.data` strings (71+37 B @ 0x8166CF90/0x8166CFD8) and
+   `NET_AES_BLOCK_MODE_CBC` (8 B `.sdata2`) left to binary fallback;
+   `NETAES*` signatures/ctx layout inferred from Wii no Ma; round functions
+   are written byte-wise (portable) — the original likely used the u32
+   T-table rotation idiom, to be restored when diffing.
+5. `nettime.c`: original `.sbss` 8-byte static (possibly a cached tick
+   value) left to binary fallback; may also apply a UTC offset.
 
-Whoever has the binary: run `ninja` with objdiff open, check the three units,
+Whoever has the binary: run `ninja` with objdiff open, check the five units,
 and adjust. Do **not** mark these `Matching` until verified.
 
 ## 8. How to build & verify locally
