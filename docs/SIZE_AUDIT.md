@@ -201,3 +201,60 @@ python tools/compile_check.py --preset fa           # sólo "¿compila?"
 
 La primera ejecución descarga compiladores y binutils (`files.decomp.dev`,
 releases de GitHub); no hace falta el binario original.
+
+---
+
+## Hallazgos de la sesión 2 (2026-08-21)
+
+Trabajando con este oráculo de tamaños salieron tres reglas y dos pistas que
+sirven para el resto del proyecto.
+
+### Reglas de codegen (CodeWarrior `-O4,p`)
+
+1. **Los `for` contados se desenrollan; los `do/while` no.** El tamaño de la
+   función original delata qué forma usó el código de Nintendo. Ejemplos
+   medidos en `NETSHA1iProcessBlock`: todo `for` → 0x67C, todo `do/while` →
+   0x22C, la mezcla correcta → 0x33C (original 0x39C).
+2. **La suma de los tamaños de una unidad tiene que dar su `.text` span.** Si
+   sobra o falta, hay funciones inventadas o funciones que faltan. `md5.c`
+   (4 funciones = 0x720) y `hmac.c` (3 = 0x3F0) se cerraron así.
+3. **Contar los símbolos antes de escribir helpers.** `aes.c` tiene nueve
+   funciones y ninguna es un helper, así que las rutinas de multiplicación en
+   GF(2^8) que tenía el puerto no podían existir; la clave inversa se
+   construye con la propia T-table de descifrado.
+
+### Estado del bloque `net` tras aplicarlas
+
+| Unidad | Antes (peor función) | Ahora | Original |
+|---|---|---|---|
+| `md5.c` `ProcessBlock` | 0xA74 | 0x4B8 | 0x4C8 |
+| `sha1.c` `iProcessBlock` | 0x67C | 0x33C | 0x39C |
+| `aes.c` `AESiDecryptBlock` | 0x8E0 | 0x2D4 | 0x3EC |
+| `hmac.c` `NETHMACGetDigest` | 0x80 | 0x198 | 0x1A4 |
+
+`hmac.c` pasó de estar estructuralmente mal a ±3 instrucciones: el contexto
+guarda la **clave rellenada**, no dos contextos de digest, y el paso opad se
+reconstruye en `GetDigest` reutilizando el único contexto.
+
+### Pistas abiertas para quien tenga el binario
+
+- **`WPADHIDParser.c`**: 13 de sus 14 funciones fuera de tamaño están cortas
+  por **exactamente 0xD0 o 0xCC bytes** (≈52 instrucciones), incluidas las que
+  no tocan extensión (`__a1_30_data_type`). Es un bloque común inlineado que
+  el puerto desde Petari no tiene; identificarlo en el desensamblado arregla
+  las 13 de golpe (~21 KiB de unidad).
+- **`sha1template` mide 0x20** en `.rodata`, o sea que la interfaz de digest
+  tiene **ocho palabras**, no tres punteros a función. Los campos que faltan
+  (¿tamaño de contexto, de bloque, de digest?) explican tanto los 0x58 bytes
+  de `.data` sin identificar de `hmac.c` como el tamaño de sus funciones.
+- **`Texture_MCUtoRGBA8.c`** tiene sus 13 funciones dentro de ±20 bytes del
+  original: es la unidad no verificada más cerca de matchear de todo el
+  proyecto. Debería ser lo primero que se abra en objdiff.
+- **`nettime.c`**: `NETGetUniversalCalendar` es 0xE4 (57 instrucciones) frente
+  a las 14 de un `OSTicksToCalendarTime(OSGetTime(), …)`, y la unidad tiene un
+  estático de 8 bytes en `.sbss`. Casi seguro aplica un sesgo (¿`SCGetCounterBias`,
+  RTC?) en vez de devolver la hora local tal cual.
+- **`Texture_MCUtoY8U8V8.c`** es un stub de 5 líneas: sus 13 funciones reales
+  (15.9 KiB, la unidad #25 del plan) siguen sin decompilar. No rompe nada
+  porque los objetos `NonMatching` no se enlazan, pero es el mayor hueco
+  suelto de TMC_JPEG.

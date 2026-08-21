@@ -209,6 +209,8 @@ closer; both re-verified on the host against RFC 1321 / FIPS 180-1):
 | `aes.c` AESiEncryptBlock | 0x3A8 | **0x1D8** | 0x278 |
 | `aes.c` NETAESEncrypt | 0x11C | **0xAC** | 0xB8 |
 | `aes.c` NETAESDecrypt | 0x12C | **0xBC** | 0xB8 |
+| `hmac.c` NETHMACGetDigest | 0x80 | **0x198** | 0x1A4 |
+| `hmac.c` NETHMACInit | 0x2D0 | **0x244** | 0x23C |
 
 Two findings that generalize to the whole project:
 
@@ -232,7 +234,12 @@ Two findings that generalize to the whole project:
 `sha1.c` also had `padlead`/`padalign` as mutable statics; symbols.txt places
 them in `.sdata2`/`.sbss2`, i.e. const, and `padalign` is 8 bytes, not 4.
 
-Open lead for `hmac.c` (still the worst of the block): `sha1template` is
+`hmac.c` was structurally wrong and is now within 3 instructions: the context
+stores the **padded key** (not two digest contexts) and the opad pass is
+rebuilt in `GetDigest`, reusing the single digest context. Its three functions
+sum to 0x3F0, exactly the unit's span. Verified against RFC 2202.
+
+Still open on `hmac.c`: `sha1template` is
 0x20 bytes in `.rodata`, i.e. **eight words, not three function pointers**,
 so the digest interface carries more fields (context size / block size /
 digest size are the obvious candidates). That also explains why the original
